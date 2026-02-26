@@ -275,9 +275,17 @@ function doExport(){
   }}
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Чек-лист');
   const fn='Чеклист_'+(M.r||'МП').replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g,'_')+'_'+(M.d||'дата')+'.xlsx';
-  try{const o=XLSX.write(wb,{bookType:'xlsx',type:'array'});const b=new Blob([o],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.style.display='none';a.href=u;a.download=fn;document.body.appendChild(a);setTimeout(()=>{a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(u)},1e4)},100)}
-  catch(e){try{const b=XLSX.write(wb,{bookType:'xlsx',type:'base64'});window.open('data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,'+b)}catch(e2){msg('Ошибка: '+e2.message);return}}
-  saveState();msg('Экспорт: '+fn);
+  // Universal download: works in Chrome, Safari, Telegram WebView
+  const mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const isTelegram=navigator.userAgent.indexOf('Telegram')!==-1||window.TelegramWebviewProxy!==undefined||window.Telegram!==undefined;
+  const isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  if(!isTelegram&&!isSafari){
+    // Chrome / Firefox / Edge — Blob method (fastest)
+    try{const o=XLSX.write(wb,{bookType:'xlsx',type:'array'});const b=new Blob([o],{type:mime});const u=URL.createObjectURL(b);const a=document.createElement('a');a.style.display='none';a.href=u;a.download=fn;document.body.appendChild(a);setTimeout(()=>{a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(u)},1e4)},100);saveState();msg('Скачано: '+fn);return}catch(e){}
+  }
+  // Telegram / Safari / fallback — data URI in new tab
+  try{const b64=XLSX.write(wb,{bookType:'xlsx',type:'base64'});const dataUri='data:'+mime+';base64,'+b64;const a=document.createElement('a');a.href=dataUri;a.download=fn;a.target='_blank';document.body.appendChild(a);a.click();setTimeout(()=>document.body.removeChild(a),5e3);saveState();msg('Скачано: '+fn)}
+  catch(e){msg('Ошибка: '+e.message)}
 }
 
 // ═══ AUTO-SAVE (localStorage) ═══
