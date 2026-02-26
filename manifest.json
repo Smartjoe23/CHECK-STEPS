@@ -1,0 +1,15 @@
+{
+  "name": "Sandoz — Чек-лист визита МП",
+  "short_name": "Sandoz Чек-лист",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#001C4A",
+  "theme_color": "#001C4A",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
