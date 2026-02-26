@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sandoz — Чек-лист визита МП</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--dark-blue:#001C4A;--sandoz-blue:#1C59B5;--medium-blue:#5DA6FF;--light-blue:#A8D5FF;--sand:#F1ECE9;--stone:#D6C6B6;--taupe:#A39F8B;--orange:#FC522D;--teal:#006B76;--mustard:#D5862C;--bg:#F5F2EF;--white:#fff;--radius:12px;--shadow:0 2px 12px rgba(0,28,74,.07);--shadow-lg:0 4px 24px rgba(0,28,74,.12)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:Arial,Helvetica,'Helvetica Neue',sans-serif;background:var(--bg);color:var(--dark-blue);min-height:100vh;-webkit-font-smoothing:antialiased}
+.app-wrap{max-width:500px;margin:0 auto;padding-bottom:16px}
+
+/* HEADER */
+.header{background:linear-gradient(145deg,var(--dark-blue) 0%,#0D3272 50%,var(--sandoz-blue) 100%);padding:14px 16px 12px;color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 4px 24px rgba(0,28,74,.35)}
+.header-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.logo-area{display:flex;align-items:center;gap:10px}
+.sandoz-logo svg{height:20px;width:auto;display:block}
+.header-divider{width:1px;height:26px;background:rgba(255,255,255,.2)}
+.header-title{font-size:12px;font-weight:700;letter-spacing:.2px;line-height:1.3;opacity:.95}
+.header-title span{display:block;font-weight:400;font-size:11px;opacity:.65}
+.header-row2{display:flex;align-items:center;gap:10px}
+.visit-selector{display:flex;gap:3px;background:rgba(255,255,255,.1);border-radius:8px;padding:3px;flex-shrink:0}
+.visit-tab{width:28px;height:28px;border-radius:6px;border:none;background:0 0;color:rgba(255,255,255,.35);font-family:Arial,sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s}
+.visit-tab.active{background:var(--medium-blue);color:#fff;box-shadow:0 2px 8px rgba(93,166,255,.4)}
+.visit-tab.has-data{color:rgba(255,255,255,.8);background:rgba(255,255,255,.08)}
+.progress-wrap{flex:1}
+.progress-info{display:flex;justify-content:space-between;font-size:11px;opacity:.6;margin-bottom:3px}
+.progress-bar{height:3px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--medium-blue),#A8D5FF);border-radius:2px;transition:width .4s ease;width:0%}
+
+/* SCALE LEGEND */
+.scale-legend{position:sticky;top:0;z-index:90;background:var(--white);border-bottom:1.5px solid var(--stone);padding:7px 16px 8px;box-shadow:0 2px 8px rgba(0,28,74,.05)}
+.scale-title{font-size:9px;font-weight:700;color:var(--dark-blue);text-align:center;margin-bottom:5px;letter-spacing:.6px;text-transform:uppercase}
+.scale-row{display:flex;align-items:flex-start;justify-content:space-between;gap:3px}
+.scale-item{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0}
+.scale-dot{width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
+.scale-label{font-size:9px;font-weight:600;color:var(--taupe);text-align:center;line-height:1.15;word-break:break-word}
+
+/* META */
+.meta-section{padding:12px 16px}
+.meta-card{background:var(--white);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.meta-field{display:flex;flex-direction:column;gap:3px}
+.meta-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--taupe)}
+.meta-input{border:1.5px solid var(--stone);border-radius:8px;padding:9px 10px;font-family:Arial,sans-serif;font-size:14px;color:var(--dark-blue);background:var(--sand);transition:border-color .2s;width:100%}
+.meta-input:focus{outline:0;border-color:var(--sandoz-blue);background:#fff}
+
+/* SCORE SUMMARY */
+.score-summary{margin:0 16px 8px;padding:12px 14px;background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:space-between}
+.score-summary-left{display:flex;align-items:center;gap:10px}
+.score-circle{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:#fff;background:var(--stone);transition:background .3s}
+.score-circle.low{background:var(--orange)}.score-circle.mid{background:var(--mustard)}.score-circle.high{background:var(--teal)}
+.score-text{font-size:12px;color:var(--taupe)}.score-text strong{display:block;font-size:14px;color:var(--dark-blue)}
+.btn-reset{background:0 0;border:none;color:var(--orange);font-family:Arial,sans-serif;font-size:12px;font-weight:700;cursor:pointer;padding:6px 0;display:flex;align-items:center;gap:4px}
+
+/* STEPS */
+.steps-container{padding:8px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.step-section{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;border-left:4px solid var(--dark-blue);transition:box-shadow .3s}
+.step-section.open{box-shadow:var(--shadow-lg)}
+.step-section[data-sc="1"]{border-left-color:var(--dark-blue)}.step-section[data-sc="2"]{border-left-color:var(--sandoz-blue)}.step-section[data-sc="3"]{border-left-color:var(--medium-blue)}.step-section[data-sc="4"]{border-left-color:var(--teal)}.step-section[data-sc="5"]{border-left-color:var(--mustard)}
+.step-header{display:flex;align-items:center;padding:12px 14px;cursor:pointer;gap:10px;user-select:none;-webkit-user-select:none}
+.step-number{width:28px;height:28px;border-radius:7px;background:var(--dark-blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.step-section[data-sc="2"] .step-number{background:var(--sandoz-blue)}.step-section[data-sc="3"] .step-number{background:var(--medium-blue)}.step-section[data-sc="4"] .step-number{background:var(--teal)}.step-section[data-sc="5"] .step-number{background:var(--mustard)}
+.step-title{flex:1;font-size:14px;font-weight:700;line-height:1.25}
+.step-badge{font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--sand);color:var(--taupe);flex-shrink:0}
+.step-badge.scored{background:rgba(0,107,118,.1);color:var(--teal)}
+.step-chevron{width:18px;height:18px;transition:transform .3s;flex-shrink:0;color:var(--taupe)}
+.step-section.open .step-chevron{transform:rotate(180deg)}
+.step-body{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.step-section.open .step-body{max-height:8000px}
+.step-content{padding:0 14px 14px}
+.subsection{margin-top:10px;padding-top:10px;border-top:1px solid var(--sand)}.subsection:first-child{margin-top:0;border-top:none;padding-top:0}
+.subsection-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--sandoz-blue);margin-bottom:8px;padding-left:10px;border-left:3px solid var(--sandoz-blue)}
+.criteria-row{padding:7px 0;border-bottom:1px solid rgba(241,236,233,.7)}.criteria-row:last-of-type{border-bottom:none}
+.criteria-text{font-size:13px;line-height:1.35;color:var(--dark-blue);margin-bottom:5px}
+.score-buttons-row{display:flex;align-items:center;gap:2px}
+.score-edge-label{font-size:8px;font-weight:700;text-transform:uppercase;color:var(--taupe);width:36px;line-height:1.1;flex-shrink:0}.score-edge-label.right{text-align:right}
+.score-btn{flex:1;height:32px;max-width:36px;border-radius:6px;border:1.5px solid #E0D9D2;background:var(--white);color:var(--taupe);font-family:Arial,sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.score-btn:active{transform:scale(.92)}
+.score-btn.selected{color:#fff;border-color:transparent;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+.score-btn.selected.s-1{background:#E8321E}.score-btn.selected.s-2{background:#FC522D}.score-btn.selected.s-3{background:#D5862C}.score-btn.selected.s-4{background:#C9A030}.score-btn.selected.s-5{background:#5A9E5A}.score-btn.selected.s-6{background:#1E8C6E}.score-btn.selected.s-7{background:#006B76}
+.comment-area{margin-top:10px;border-top:1px dashed var(--stone);padding-top:10px}
+.comment-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--taupe);margin-bottom:5px}
+.comment-input{width:100%;border:1.5px solid var(--stone);border-radius:8px;padding:9px 10px;font-family:Arial,sans-serif;font-size:13px;color:var(--dark-blue);background:var(--sand);resize:vertical;min-height:50px;transition:border-color .2s}
+.comment-input:focus{outline:0;border-color:var(--sandoz-blue);background:#fff}
+
+/* HEADER EXPORT BUTTON */
+.btn-header-export{
+  background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);
+  border-radius:8px;padding:7px 12px;color:#fff;font-family:Arial,sans-serif;
+  font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;
+  transition:all .2s;flex-shrink:0;
+}
+.btn-header-export:active{background:rgba(255,255,255,0.25);transform:scale(.95)}
+/* ACTION BAR (inline) */
+.action-bar{margin:0 16px 8px;display:flex;gap:8px}
+.btn-act{flex:1;padding:10px;border:none;border-radius:var(--radius);font-family:Arial,sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-act:active{transform:scale(.97)}
+.btn-act.secondary{background:var(--white);color:var(--orange);border:1.5px solid var(--stone)}
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.95);background:var(--dark-blue);color:#fff;padding:14px 28px;border-radius:12px;font-size:14px;font-weight:600;opacity:0;transition:all .3s;z-index:200;pointer-events:none;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+</style>
+</head>
+<body>
+<div class="app-wrap">
+
+<div class="header" id="mainHeader">
+  <div class="header-row1">
+    <div class="logo-area">
+      <div class="sandoz-logo">
+        <svg viewBox="0 0 520 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <text x="0" y="76" fill="white" font-family="Arial,Helvetica,sans-serif" font-size="88" font-weight="700" letter-spacing="4">sandoz</text>
+          <rect x="458" y="68" width="10" height="10" rx="5" fill="#5DA6FF"/>
+        </svg>
+      </div>
+      <div class="header-divider"></div>
+      <div class="header-title">Чек-лист визита МП<span>Обратная связь «E2G»</span></div>
+    </div>
+    <button class="btn-header-export" onclick="exportXLSX()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      XLSX
+    </button>
+  </div>
+  <div class="header-row2">
+    <div class="visit-selector" id="visitSelector">
+      <button class="visit-tab active" data-visit="1">1</button>
+      <button class="visit-tab" data-visit="2">2</button>
+      <button class="visit-tab" data-visit="3">3</button>
+      <button class="visit-tab" data-visit="4">4</button>
+      <button class="visit-tab" data-visit="5">5</button>
+      <button class="visit-tab" data-visit="6">6</button>
+      <button class="visit-tab" data-visit="7">7</button>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-info">
+        <span id="progressLabel">Визит 1 · 0%</span>
+        <span id="progressCount">0/59</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="scale-legend" id="scaleLegend">
+  <div class="scale-title">Шкала оценки навыков</div>
+  <div class="scale-row">
+    <div class="scale-item"><div class="scale-dot" style="background:#E8321E">1</div><div class="scale-label">Не использует</div></div>
+    <div class="scale-item"><div class="scale-dot" style="background:#FC522D">2</div><div class="scale-label">Крайне редко</div></div>
+    <div class="scale-item"><div class="scale-dot" style="background:#D5862C">3</div><div class="scale-label">Иногда</div></div>
+    <div class="scale-item"><div class="scale-dot" style="background:#C9A030">4</div><div class="scale-label">Через раз</div></div>
+    <div class="scale-item"><div class="scale-dot" style="background:#5A9E5A">5</div><div class="scale-label">Часто</div></div>
+    <div class="scale-item"><div class="scale-dot" style="background:#1E8C6E">6</div><div class="scale-label">Почти всегда</div></div>
+    <div class="scale-item"><div class="scale-dot" style="background:#006B76">7</div><div class="scale-label">Применяет всегда</div></div>
+  </div>
+</div>
+
+<div class="meta-section">
+  <div class="meta-card">
+    <div class="meta-grid">
+      <div class="meta-field"><label class="meta-label">Дата</label><input type="date" class="meta-input" id="metaDate"></div>
+      <div class="meta-field"><label class="meta-label">Город / Регион</label><input type="text" class="meta-input" id="metaCity" placeholder="Алматы"></div>
+      <div class="meta-field"><label class="meta-label">ФИО Менеджера</label><input type="text" class="meta-input" id="metaManager" placeholder="Иванов И.И."></div>
+      <div class="meta-field"><label class="meta-label">ФИО Медпреда</label><input type="text" class="meta-input" id="metaMR" placeholder="Петров П.П."></div>
+    </div>
+  </div>
+</div>
+
+<div class="score-summary">
+  <div class="score-summary-left">
+    <div class="score-circle" id="scoreCircle">—</div>
+    <div class="score-text"><strong id="scoreLabel">Нет оценок</strong><span id="scoreSubtext">Заполните критерии</span></div>
+  </div>
+  <button class="btn-reset" onclick="resetV()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>Сброс</button>
+</div>
+
+<div class="action-bar">
+  <button class="btn-act secondary" onclick="resetV()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>Сбросить визит</button>
+</div>
+
+<div class="steps-container" id="stepsC"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SC={1:'Не использует',2:'Крайне редко',3:'Иногда',4:'Через раз',5:'Часто',6:'Почти всегда',7:'Применяет всегда'};
+const CL=[
+{step:1,title:"Подготовка",subs:[{t:null,items:["MR поставил цель по SMART на маршрут","MR подготовил материалы","MR знает шаги визита","MR знает врачей / фармацевтов","MR подготовил возражения","MR знает как будет достигать цели","MR подготовил FABы","MR подготовил вопросы на выявление потребностей"]},{t:"Постановка цели SMART",items:["S — Конкретна: портрет пациента","M — Измерима: кол-во или портрет пациента","A — Достижима: свойство, которым будет убеждать","R — Реалистичная","T — Ограничена во времени"]}]},
+{step:2,title:"Контакт и Потребность",subs:[{t:null,items:["Приветствие","Представление себя и компании","Small talk"]},{t:"Связь с прошлым визитом",items:["Выяснение выполнения договорённостей прошлого визита","Кому? — Тип, портрет пациента","Что? — Препарат, форма выпуска или дозировка","Сколько? — Кол-во пациентов со слов клиента"]},{t:"Активное слушание",items:["Улыбка","Зрительный контакт","Качание головой","Поза (наклон вперёд, поворот к собеседнику)","Жесты (открытые, умеренные)","Паузы","Угу-кание","Парафраз","Уточняющие вопросы"]},{t:"Создание потребности",items:["Вопросы о ситуации","Вопросы о выборе терапии / препарата (кому, что)","Вопросы о возможностях для врача / фармацевта","Вопросы о возможностях для пациента","Предложение о решении проблемы"]}]},
+{step:3,title:"Предложение и решение",subs:[{t:null,items:["Проведение презентации с учётом выявленной потребности","Свойство","Преимущество","Выгода (для врача / провизора / пациента)","Ключевое сообщение","Эффективное использование POS материалов","Визит построен в виде диалога между МП и клиентом","Знания продуктов Компании и конкурентов"]},{t:"Отработка возражений",items:["Присоединение","Выявление типа возражения","Уточнение","Условное согласие","Аргументация","Вопрос о принятии"]}]},
+{step:4,title:"Действие",subs:[{t:"Получение аргументированного согласия",items:["Кому? — Тип, портрет пациента","Что? — Препарат, форма выпуска или дозировка","Сколько? — Кол-во пациентов со слов клиента"]},{t:"Резюме достигнутых договорённостей",items:["Кому? — Тип, портрет пациента","Что? — Препарат, форма выпуска или дозировка","Договорённость о времени и дате следующего визита"]}]},
+{step:5,title:"Последующие шаги",subs:[{t:null,items:["MR проанализировал достижение цели","MR проанализировал сильные стороны и зоны роста","MR определил возможности","Поставил цель на следующий визит","Сделал записи после визита"]}]}
+];
+const TOTAL=CL.reduce((s,st)=>s+st.subs.reduce((s2,sub)=>s2+sub.items.length,0),0);
+let V={};for(let v=1;v<=7;v++)V[v]={scores:{},comments:{}};
+let cur=1,meta={date:'',city:'',manager:'',mr:''};
+
+function fixTop(){document.getElementById('scaleLegend').style.top=document.getElementById('mainHeader').offsetHeight+'px';}
+window.addEventListener('resize',fixTop);setTimeout(fixTop,30);
+
+function render(){
+  const c=document.getElementById('stepsC');c.innerHTML='';let gi=0;
+  CL.forEach((step,si)=>{
+    const sec=document.createElement('div');sec.className='step-section'+(si===0?' open':'');sec.dataset.sc=step.step;
+    const sN=step.subs.reduce((s,sub)=>s+sub.items.length,0);let sc=0,ti=gi;
+    step.subs.forEach(sub=>{sub.items.forEach(()=>{if(V[cur].scores[ti]!==undefined)sc++;ti++;});});
+    sec.innerHTML=`<div class="step-header" onclick="tog(${si})"><div class="step-number">${step.step}</div><div class="step-title">${step.title}</div><div class="step-badge${sc>0?' scored':''}">${sc}/${sN}</div><svg class="step-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div><div class="step-body"><div class="step-content"></div></div>`;
+    c.appendChild(sec);const ct=sec.querySelector('.step-content');
+    step.subs.forEach(sub=>{
+      const sd=document.createElement('div');sd.className='subsection';
+      if(sub.t)sd.innerHTML=`<div class="subsection-title">${sub.t}</div>`;
+      sub.items.forEach(item=>{
+        const s=V[cur].scores[gi],row=document.createElement('div');row.className='criteria-row';
+        row.innerHTML=`<div class="criteria-text">${item}</div><div class="score-buttons-row"><div class="score-edge-label">Не исп.</div>${[1,2,3,4,5,6,7].map(n=>`<button class="score-btn${s===n?' selected s-'+n:''}" onclick="ss(${gi},${n})" title="${SC[n]}">${n}</button>`).join('')}<div class="score-edge-label right">Всегда</div></div>`;
+        sd.appendChild(row);gi++;
+      });ct.appendChild(sd);
+    });
+    const cv=V[cur].comments[si]||'',cd=document.createElement('div');cd.className='comment-area';
+    cd.innerHTML=`<div class="comment-label">Комментарии</div><textarea class="comment-input" placeholder="Комментарий к шагу..." data-step="${si}" oninput="sc2(${si},this.value)">${cv}</textarea>`;
+    ct.appendChild(cd);
+  });
+}
+function tog(i){document.querySelectorAll('.step-section')[i].classList.toggle('open');}
+function ss(idx,s){if(V[cur].scores[idx]===s)delete V[cur].scores[idx];else V[cur].scores[idx]=s;render();upd();}
+function sc2(si,v){V[cur].comments[si]=v;}
+function sw(v){document.querySelectorAll('.comment-input').forEach(t=>{V[cur].comments[t.dataset.step]=t.value;});cur=v;document.querySelectorAll('.visit-tab').forEach(t=>t.classList.toggle('active',+t.dataset.visit===v));render();upd();}
+document.getElementById('visitSelector').addEventListener('click',e=>{const t=e.target.closest('.visit-tab');if(t)sw(+t.dataset.visit);});
+
+function upd(){
+  const n=Object.keys(V[cur].scores).length,pct=Math.round((n/TOTAL)*100);
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').textContent=`Визит ${cur} · ${pct}%`;
+  document.getElementById('progressCount').textContent=`${n}/${TOTAL}`;
+  const scores=Object.values(V[cur].scores),ci=document.getElementById('scoreCircle'),lb=document.getElementById('scoreLabel'),sb=document.getElementById('scoreSubtext');
+  if(!scores.length){ci.textContent='—';ci.className='score-circle';lb.textContent='Нет оценок';sb.textContent='Заполните критерии';}
+  else{const avg=(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1);ci.textContent=avg;ci.className='score-circle '+(avg<=3?'low':avg<=5?'mid':'high');lb.textContent=`Средний балл: ${avg} / 7`;sb.textContent=`${scores.length} из ${TOTAL} (${Math.round(parseFloat(avg)/7*100)}%)`;}
+  document.querySelectorAll('.visit-tab').forEach(t=>{const v=+t.dataset.visit;t.classList.toggle('has-data',Object.keys(V[v].scores).length>0&&v!==cur);});
+}
+function resetV(){if(!confirm(`Сбросить визит ${cur}?`))return;V[cur]={scores:{},comments:{}};render();upd();toast('Визит сброшен');}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
+
+document.getElementById('metaDate').addEventListener('change',e=>meta.date=e.target.value);
+document.getElementById('metaCity').addEventListener('input',e=>meta.city=e.target.value);
+document.getElementById('metaManager').addEventListener('input',e=>meta.manager=e.target.value);
+document.getElementById('metaMR').addEventListener('input',e=>meta.mr=e.target.value);
+document.getElementById('metaDate').valueAsDate=new Date();meta.date=document.getElementById('metaDate').value;
+
+function exportXLSX(){
+  document.querySelectorAll('.comment-input').forEach(t=>{V[cur].comments[t.dataset.step]=t.value;});
+  const d=[];
+  d.push(['Sandoz — Чек-лист обратной связи «E2G»']);
+  d.push([]);
+  d.push(['Дата',meta.date||'']);
+  d.push(['Менеджер',meta.manager||'']);
+  d.push(['Медпред',meta.mr||'']);
+  d.push(['Город / Регион',meta.city||'']);
+  d.push([]);
+  d.push(['Шкала: 1=Не использует | 2=Крайне редко | 3=Иногда | 4=Через раз | 5=Часто | 6=Почти всегда | 7=Применяет всегда']);
+  d.push([]);
+  const hdr=['Шаг','Подраздел','Навык / Критерий'];
+  for(let v=1;v<=7;v++) hdr.push('Визит '+v);
+  hdr.push('Комментарии');
+  d.push(hdr);
+  const hR=d.length-1;
+  let gi=0;
+  CL.forEach((step,si)=>{
+    const stepName='Шаг '+step.step+'. '+step.title;
+    const cParts=[];
+    for(let v=1;v<=7;v++){const c=V[v].comments[si];if(c)cParts.push('В'+v+': '+c);}
+    const cmtText=cParts.join(' | ');
+    let firstOfStep=true;
+    step.subs.forEach(sub=>{
+      sub.items.forEach(item=>{
+        const row=[stepName, sub.t||'', item];
+        for(let v=1;v<=7;v++){const s=V[v].scores[gi];row.push(s!==undefined?s:'');}
+        row.push(firstOfStep?cmtText:'');
+        firstOfStep=false;
+        d.push(row);
+        gi++;
+      });
+    });
+  });
+  d.push([]);
+  const avgRow=['','','СРЕДНИЙ БАЛЛ'];
+  for(let v=1;v<=7;v++){const sc=Object.values(V[v].scores);avgRow.push(sc.length?parseFloat((sc.reduce((a,b)=>a+b,0)/sc.length).toFixed(1)):'');}
+  avgRow.push('');d.push(avgRow);
+  const cntRow=['','','Заполнено'];
+  for(let v=1;v<=7;v++) cntRow.push(Object.keys(V[v].scores).length+'/'+TOTAL);
+  cntRow.push('');d.push(cntRow);
+
+  const ws=XLSX.utils.aoa_to_sheet(d);
+  ws['!cols']=[{wch:20},{wch:24},{wch:46},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:42}];
+  ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:hR,c:0},e:{r:hR,c:10}})};
+  const rng=XLSX.utils.decode_range(ws['!ref']);
+  const bdr={top:{style:"thin",color:{rgb:"D6C6B6"}},bottom:{style:"thin",color:{rgb:"D6C6B6"}},left:{style:"thin",color:{rgb:"D6C6B6"}},right:{style:"thin",color:{rgb:"D6C6B6"}}};
+  for(let R=rng.s.r;R<=rng.e.r;R++){for(let C=rng.s.c;C<=rng.e.c;C++){
+    const a=XLSX.utils.encode_cell({r:R,c:C});if(!ws[a])continue;if(!ws[a].s)ws[a].s={};const v=ws[a].v;
+    if(R===0)ws[a].s={font:{bold:true,sz:14,name:"Arial",color:{rgb:"001C4A"}}};
+    else if(R>=2&&R<=5&&C===0)ws[a].s={font:{bold:true,sz:10,name:"Arial",color:{rgb:"A39F8B"}},fill:{fgColor:{rgb:"F1ECE9"}},border:bdr};
+    else if(R>=2&&R<=5&&C===1)ws[a].s={font:{bold:true,sz:10,name:"Arial",color:{rgb:"001C4A"}},border:bdr};
+    else if(R===hR)ws[a].s={font:{bold:true,sz:10,name:"Arial",color:{rgb:"FFFFFF"}},fill:{fgColor:{rgb:"001C4A"}},alignment:{horizontal:"center",wrapText:true},border:bdr};
+    else if(R>hR&&C>=3&&C<=9&&typeof v==='number'){
+      let fc="F1ECE9";if(v<=2)fc="FCD5CC";else if(v<=3)fc="FDE8D0";else if(v<=5)fc="FDF5D5";else fc="D0EDDA";
+      ws[a].s={font:{bold:true,sz:10,name:"Arial",color:{rgb:"001C4A"}},fill:{fgColor:{rgb:fc}},alignment:{horizontal:"center"},border:bdr};
+    }
+    else if(typeof v==='string'&&(v==='СРЕДНИЙ БАЛЛ'||v.startsWith('Заполнено')))ws[a].s={font:{bold:true,sz:10,name:"Arial",color:{rgb:"001C4A"}},fill:{fgColor:{rgb:"A8D5FF"}},border:bdr};
+    else if((R===rng.e.r||R===rng.e.r-1)&&C>=3&&C<=9)ws[a].s={font:{bold:true,sz:10,name:"Arial",color:{rgb:"001C4A"}},fill:{fgColor:{rgb:"A8D5FF"}},alignment:{horizontal:"center"},border:bdr};
+    else ws[a].s={font:{sz:10,name:"Arial",color:{rgb:"001C4A"}},border:bdr,alignment:{wrapText:true}};
+  }}
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Чек-лист');
+  const fname=`Чеклист_${(meta.mr||'МП').replace(/[^a-zA-Zа-яА-ЯёЁ0-9]/g,'_')}_${meta.date||'дата'}.xlsx`;
+  const mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  try{const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});const blob=new Blob([wbout],{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fname;a.setAttribute('target','_blank');document.body.appendChild(a);a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url)},2000);}catch(e){}
+  try{const b64=XLSX.write(wb,{bookType:'xlsx',type:'base64'});const iframe=document.createElement('iframe');iframe.style.display='none';iframe.src='data:'+mime+';base64,'+b64;document.body.appendChild(iframe);setTimeout(()=>document.body.removeChild(iframe),5000);}catch(e){}
+  toast('Экспорт: '+fname);
+}
+render();upd();
+</script>
+</body>
+</html>
